@@ -12,10 +12,11 @@ constexpr int MAX_FPS = 60;
 constexpr int BALL_SPEED = 150;
 constexpr int MAX_BALL_SPEED = 190;
 constexpr int PADDLE_SPEED = 250;
-constexpr int BALL_SIZE = 100;
+constexpr int BALL_SIZE = 20;
 constexpr int BRICK_WIDTH = 60;
 constexpr int BRICK_HEIGHT = 20;
 constexpr int BRICK_SPACING = 5;
+constexpr int POWERUP_SIZE = 20;
 constexpr int BALL_INITIAL_X = SCREEN_WIDTH / 2;
 constexpr int BALL_INITIAL_Y = SCREEN_HEIGHT / 2;
 
@@ -38,12 +39,13 @@ SDL_Color purple = {0x80, 0x00, 0x80, 0xFF};
 SDL_Color white = {0xFF, 0xFF, 0xFF, 0xFF};
 
 RectObject paddle = {{SCREEN_WIDTH / 2, SCREEN_HEIGHT - 25, 100, 20}, 0, 0, white};
-RectObject ballPrefab = {{BALL_INITIAL_X , BALL_INITIAL_Y, 20, 20}, -BALL_SPEED, BALL_SPEED, white};
+RectObject ballPrefab = {{BALL_INITIAL_X , BALL_INITIAL_Y, BALL_SIZE, BALL_SIZE}, -BALL_SPEED, BALL_SPEED, white};
+RectObject powerUpPrefab = {{BALL_INITIAL_X , BALL_INITIAL_Y, POWERUP_SIZE, POWERUP_SIZE}, 0, 100, blue};
 
 std::vector<RectObject> bricks;
 std::vector<RectObject> balls = {ballPrefab};
+std::vector<RectObject> powerUps = {};
 
-RectObject powerUp = {{BALL_INITIAL_X , BALL_INITIAL_Y, 20, 20}, 0, 100, blue};
 
 SDL_Color getRandomColor() {
     SDL_Color colors[] = {red, orange, yellow, green, blue, purple, white};
@@ -100,6 +102,16 @@ void handleInput(SDL_Event& e) {
     }
 }
 
+void createRandomPowerUp(int x, int y) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 99);
+    if (dis(gen) < 20) {
+        RectObject powerUp = {{x, y, POWERUP_SIZE, POWERUP_SIZE}, 0, 100, blue}; // Falling power-up
+        powerUps.push_back(powerUp);
+    }
+}
+
 void update(float dT) {
 
     if (paddle.rect.x < 0) {
@@ -132,6 +144,7 @@ void update(float dT) {
         if (balls[i].rect.y + balls[i].rect.h> SCREEN_HEIGHT) {
             balls.erase(balls.begin() + i);
             --i; // Ajustar el índice después de la eliminación
+            continue;
         }
 
         // Colisión con la paleta
@@ -153,31 +166,45 @@ void update(float dT) {
         for (size_t j = 0; j < bricks.size(); ++j) {
             if (checkCollision(balls[i].rect, bricks[j].rect)) {
                 balls[i].velocityY *= -1.1;
+
+                int brickCenterX = bricks[j].rect.x + bricks[j].rect.w / 2;
+                int brickCenterY = bricks[j].rect.y + bricks[j].rect.h / 2;
+
+                createRandomPowerUp(brickCenterX, brickCenterY);
                 bricks.erase(bricks.begin() + j);
                 --j; // Ajustar el índice después de la eliminación
             }
         }
-
         balls[i].rect.x +=  balls[i].velocityX * dT;
         balls[i].rect.y +=  balls[i].velocityY * dT;
     }
 
-    powerUp.rect.y += powerUp.velocityY * dT;
-    powerUp.color = getRandomColor();
+    for (size_t i = 0; i < powerUps.size(); ++i) {
+        if (checkCollision(powerUps[i].rect, paddle.rect)) {
+            powerUps.erase(powerUps.begin() + i);
+            --i; // Ajustar el índice después de la eliminación
+            balls.push_back(ballPrefab);
+        }
+
+        if (powerUps[i].rect.y > SCREEN_HEIGHT) {
+            powerUps.erase(powerUps.begin() + i);
+            --i; // Ajustar el índice después de la eliminación
+            continue;
+        }
+
+        powerUps[i].rect.y += powerUps[i].velocityY * dT;
+        powerUps[i].color = getRandomColor();
+    }
 
     paddle.rect.x +=  paddle.velocityX * dT;
     paddle.rect.y +=  paddle.velocityY * dT;
 
-    if(balls.empty()) {
-        vidas -= 1;
-        if(vidas == 0) {
+    if(balls.empty() || bricks.empty()) {
+        if(vidas == 0 || bricks.empty()) {
             exit(0);
-        }else {
-            balls.push_back(ballPrefab);
         }
-    }
-    if(bricks.empty()) {
-        exit(0);
+        vidas --;
+        balls.push_back(ballPrefab);
     }
 }
 
@@ -234,6 +261,9 @@ int main(int argc, char* argv[]) {
         for (RectObject brick: bricks) {
             renderRect(renderer, brick);
         }
+        for (RectObject powerUp: powerUps) {
+            renderRect(renderer, powerUp);
+        }
 
         //renderRect(renderer, powerUp);
 
@@ -258,7 +288,7 @@ int main(int argc, char* argv[]) {
             frameCount = 0;
         }
 
-        SDL_SetWindowTitle(window, std::to_string(FPS).c_str());
+        SDL_SetWindowTitle(window, std::to_string(vidas).c_str());
     }
 
     SDL_DestroyRenderer(renderer);

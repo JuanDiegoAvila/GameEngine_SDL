@@ -11,6 +11,10 @@
 #define BRICK_WIDTH 90
 #define BRICK_HEIGHT 30
 #define BRICK_SPACING 10
+#define PADDLE_WIDTH 150
+#define PADDLE_HEIGHT 20
+
+#define SPEED_LIMIT 600
 
 SDL_Color red = {0xFF, 0x00, 0x00, 0xFF};
 SDL_Color orange = {0xFF, 0xA5, 0x00, 0xFF};
@@ -30,9 +34,9 @@ struct SpriteComponent {
 class PaddleSpawnSetypSystem : public SetupSystem {
   void run() {
 
-    Entity* paddle = scene->createEntity("PADDLE", 100, HEIGHT-110); 
+    Entity* paddle = scene->createEntity("PADDLE", WIDTH / 2, HEIGHT-110); 
     paddle->addComponent<VelocityComponent>(500, 500);
-    paddle->addComponent<SpriteComponent>(150, 20, SDL_Color{255, 255, 255});
+    paddle->addComponent<SpriteComponent>(PADDLE_WIDTH, PADDLE_HEIGHT, SDL_Color{255, 255, 255});
     paddle->addComponent<PlayerControlledComponent>();
   }
 };
@@ -41,7 +45,7 @@ class PaddleSpawnSetypSystem : public SetupSystem {
 class SquareSpawnSetupSystem : public SetupSystem {
   void run() {
     
-
+    int brickCount = 0;
     int rows = 6;
     int cols = 10;
     SDL_Color colors[] = {red, orange, yellow, green, blue, purple};
@@ -53,60 +57,21 @@ class SquareSpawnSetupSystem : public SetupSystem {
             Entity* square = scene->createEntity("SQUARE2", posX, posY); 
 
             square->addComponent<SpriteComponent>(BRICK_WIDTH, BRICK_HEIGHT, orange);
+            square->addComponent<BrickComponent>();
+            brickCount++;
         }
     }
-    
+
+    scene->setBrickCount(brickCount);
   }
 };
-
-class BallCollisionSystem : public UpdateSystem {
-  void run(float dT) {
-    auto ballView = scene->r.view<PositionComponent, VelocityComponent, SpriteComponent>();
-    auto paddleView = scene->r.view<PositionComponent, SpriteComponent, PlayerControlledComponent>();
-    auto brickView = scene->r.view<PositionComponent, SpriteComponent>();
-
-    for (auto ball : ballView) {
-      auto& ballPos = ballView.get<PositionComponent>(ball);
-      auto& ballVel = ballView.get<VelocityComponent>(ball);
-      auto& ballSpr = ballView.get<SpriteComponent>(ball);
-
-      // Detectar colisión con el paddle
-      for (auto paddle : paddleView) {
-        auto& paddlePos = paddleView.get<PositionComponent>(paddle);
-        auto& paddleSpr = paddleView.get<SpriteComponent>(paddle);
-
-        if (ballPos.x < paddlePos.x + paddleSpr.width &&
-            ballPos.x + ballSpr.width > paddlePos.x &&
-            ballPos.y < paddlePos.y + paddleSpr.height &&
-            ballPos.y + ballSpr.height > paddlePos.y) {
-          ballVel.y *= -1;
-          ballPos.y = paddlePos.y - ballSpr.height; // Reubicar la bola encima del paddle
-        }
-      }
-
-      // Detectar colisión con los ladrillos
-      for (auto brick : brickView) {
-        auto& brickPos = brickView.get<PositionComponent>(brick);
-        auto& brickSpr = brickView.get<SpriteComponent>(brick);
-
-        if (ballPos.x < brickPos.x + brickSpr.width &&
-            ballPos.x + ballSpr.width > brickPos.x &&
-            ballPos.y < brickPos.y + brickSpr.height &&
-            ballPos.y + ballSpr.height > brickPos.y) {
-          ballVel.y *= -1;
-          scene->destroyEntity(brick); // Destruir el ladrillo
-        }
-      }
-    }
-  }
-};
-
 
 class BallSpawnSetupSystem : public SetupSystem {
   void run() {
     Entity* ball = scene->createEntity("BALL", WIDTH/2, HEIGHT/2); 
-    ball->addComponent<VelocityComponent>(500, 500);
+    ball->addComponent<VelocityComponent>(250, 250);
     ball->addComponent<SpriteComponent>(20, 20, SDL_Color{255, 255, 255});
+    ball->addComponent<BallComponent>();
   }
 };
 
@@ -123,6 +88,80 @@ class MovementSystem : public UpdateSystem {
     }
   }
 };
+
+class CollisionSystem : public UpdateSystem {
+public:
+    void run(float dT) override {
+        auto view = scene->r.view<PositionComponent, VelocityComponent>();
+
+        if (scene->getBrickCount() == 0) {
+          printf("============================================\n");
+          printf("¡Has ganado el juego!\n");
+          printf("============================================\n");
+          exit(0);
+        }
+
+        for (auto entity : view) {
+            auto &pos = view.get<PositionComponent>(entity);
+            auto &vel = view.get<VelocityComponent>(entity);
+
+            if (scene->r.any_of<BallComponent>(entity)) {
+
+                limitSpeed(vel);
+                
+                auto paddleView = scene->r.view<PositionComponent, PlayerControlledComponent>();
+                for (auto paddleEntity : paddleView) {
+                    auto &paddlePos = paddleView.get<PositionComponent>(paddleEntity);
+                    if (checkCollision(pos, paddlePos, PADDLE_WIDTH, PADDLE_HEIGHT)) { // Paddle size (width=50, height=10)
+                        // Invertir la dirección de la pelota
+                        vel.y = -vel.y;
+                    }
+                }
+
+                // Colisión con los bricks
+                auto brickView = scene->r.view<PositionComponent, BrickComponent>();
+                for (auto brickEntity : brickView) {
+                    auto &brickPos = brickView.get<PositionComponent>(brickEntity);
+                    if (checkCollision(pos, brickPos, BRICK_WIDTH, BRICK_HEIGHT)) {
+                        // Colisión detectada, eliminar el bloque
+                        scene->destroyEntity(brickEntity);
+                        scene->decreaseBrickCount();
+
+                        // Invertir la dirección de la pelota
+                        vel.y = -vel.y;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    void setScene(Scene *s) {
+        scene = s;
+    }
+
+private:
+    Scene *scene;
+
+    bool checkCollision(const PositionComponent &a, const PositionComponent &b, int width, int height) {
+        // Implementar lógica de detección de colisiones
+        return !(a.x + width < b.x ||
+                 a.x > b.x + width ||
+                 a.y + height < b.y ||
+                 a.y > b.y + height);
+    }
+
+    void limitSpeed(VelocityComponent &vel) {
+        // Limitar la velocidad en el eje X
+        if (vel.x > SPEED_LIMIT) vel.x = SPEED_LIMIT;
+        if (vel.x < -SPEED_LIMIT) vel.x = -SPEED_LIMIT;
+
+        // Limitar la velocidad en el eje Y
+        if (vel.y > SPEED_LIMIT) vel.y = SPEED_LIMIT;
+        if (vel.y < -SPEED_LIMIT) vel.y = -SPEED_LIMIT;
+    }
+};
+
 
 class WallHitSystem : public UpdateSystem {
   void run(float dT) {
@@ -142,9 +181,17 @@ class WallHitSystem : public UpdateSystem {
 
       }
 
-      if (newPosY < 0 || newPosY + spr.height > 768) {
+      // Si la bola toca el suelo se acaba el juego y se imprime un mensaje
+      if (newPosY + spr.height > 768) {
+        printf("============================================\n");
+        std::printf("GAME OVER\n");
+        printf("============================================\n");
+        exit(0);
+      }
+      
+      if(newPosY < 0) {
         vel.y *= -1.1;
-        pos.y = 0 + (newPosY < 0 ? 0 : 768 - spr.height);
+        pos.y = 0;
       }
       
     }
@@ -208,8 +255,7 @@ class DemoGame : public Game {
       addUpdateSystem<WallHitSystem>(sampleScene);
       addUpdateSystem<InputSystem>(sampleScene);
       addRenderSystem<SquareRenderSystem>(sampleScene);
-      
-      //addUpdateSystem<BallCollisionSystem>(sampleScene);
+      addUpdateSystem<CollisionSystem>(sampleScene);
 
       setScene(sampleScene);
     }

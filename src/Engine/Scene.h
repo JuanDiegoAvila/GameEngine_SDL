@@ -32,6 +32,22 @@ public:
   void render(SDL_Renderer* renderer);
   void processEvents(SDL_Event e);
 
+  private:
+    int brickCount;
+
+  public:
+    void setBrickCount(int count) {
+      brickCount = count;
+    }
+
+    int getBrickCount() const {
+      return brickCount;
+    }
+
+    void decreaseBrickCount() {
+      brickCount--;
+    }
+
   entt::registry& r;
   std::string name;
 };

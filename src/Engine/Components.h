@@ -17,3 +17,6 @@ struct VelocityComponent {
 
 struct PlayerControlledComponent {};
 
+struct BrickComponent {};
+
+struct BallComponent {};

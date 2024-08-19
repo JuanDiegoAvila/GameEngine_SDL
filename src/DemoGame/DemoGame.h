@@ -3,6 +3,7 @@
 #include "Engine/Entity.h"
 #include "Engine/Components.h"
 #include "Engine/Systems.h"
+#include "Engine/Graphics/TextureManager.h"
 #include <printf.h>
 #include <entt/entt.hpp>
 
@@ -26,6 +27,7 @@ SDL_Color white = {0xFF, 0xFF, 0xFF, 0xFF};
 
 
 struct SpriteComponent {
+  std::string texturePath;
   int width;
   int height;
   SDL_Color color;
@@ -234,6 +236,45 @@ class InputSystem : public UpdateSystem {
   }
 };
 
+struct TextureComponent {
+  std::string filename;
+};
+
+struct BackgroundComponent {
+  std::string filename;
+};
+
+class BackgroundSetupSystem : public SetupSystem {
+public:
+  void run() override {
+    Entity* background = scene->createEntity("Background");
+    const std::string& bgfile = "assets/stars.jpeg";
+    background->addComponent<TextureComponent>(bgfile);
+    background->addComponent<BackgroundComponent>(bgfile);
+  }
+};
+
+class TextureSetupSystem : public SetupSystem {
+  void run(){
+    auto view = scene->r.view<TextureComponent>();
+    for (auto e : view) {
+      auto tex = view.get<TextureComponent>(e);
+      TextureManager::LoadTexture(tex.filename, scene->renderer);
+    }
+  }
+};
+
+class BackgroundRenderSystem : public RenderSystem {
+  void run(SDL_Renderer* renderer){
+    auto view = scene->r.view<BackgroundComponent>();
+    for (auto e : view) {
+      auto tex = view.get<BackgroundComponent>(e);
+      auto texture = TextureManager::GetTexture(tex.filename);
+      texture->render(renderer, 0, 0);
+    }
+  }
+};
+
 
 class DemoGame : public Game {
   public:
@@ -247,10 +288,15 @@ class DemoGame : public Game {
 
     void setup() {
       
-      sampleScene = new Scene("BREAKOUT", r);
+      sampleScene = new Scene("BREAKOUT", r, renderer);
       addSetupSystem<PaddleSpawnSetypSystem>(sampleScene);
       addSetupSystem<BallSpawnSetupSystem>(sampleScene);
       addSetupSystem<SquareSpawnSetupSystem>(sampleScene);
+
+      addSetupSystem<BackgroundSetupSystem>(sampleScene);
+      addSetupSystem<TextureSetupSystem>(sampleScene);
+      addRenderSystem<BackgroundRenderSystem>(sampleScene);
+
       addUpdateSystem<MovementSystem>(sampleScene);
       addUpdateSystem<WallHitSystem>(sampleScene);
       addUpdateSystem<InputSystem>(sampleScene);

@@ -18,12 +18,22 @@ add_executable(
 )
 
 find_package(SDL2 REQUIRED)
+#find_package(PkgConfig REQUIRED)
+#pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_IMAGE)
 
 target_include_directories(GameEngine_SDL  
   PUBLIC src
   PUBLIC ${SDL2_INCLUDE_DIRS}
 )
 
+set(SDL2_IMAGE_LIBRARIES "/usr/lib/x86_64-linux-gnu/libSDL2_image.so")
+
 target_link_libraries(GameEngine_SDL
   ${SDL2_LIBRARIES}
+  ${SDL2_IMAGE_LIBRARIES}
+)
+
+add_custom_command(TARGET GameEngine_SDL POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:GameEngine_SDL>/assets
 )

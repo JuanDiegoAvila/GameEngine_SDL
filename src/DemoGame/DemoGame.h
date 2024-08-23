@@ -26,54 +26,33 @@ SDL_Color purple = {0x80, 0x00, 0x80, 0xFF};
 SDL_Color white = {0xFF, 0xFF, 0xFF, 0xFF};
 
 
+struct TextureComponent {
+  std::string filename;
+};
+
+struct BackgroundComponent {
+  std::string filename;
+};
+
 struct SpriteComponent {
-  std::string texturePath;
+  std::string filename;
   int width;
   int height;
-  SDL_Color color;
+  int scale = 1;
+  int animationFrames = 0;
+  int animationDuration = 0;
+  Uint32 lastUpdate = 0;
+  int xIndex = 0;
+  int yIndex = 0;
 };
 
-class PaddleSpawnSetypSystem : public SetupSystem {
+class PlayerSpawnSetupSystem : public SetupSystem {
   void run() {
-
-    Entity* paddle = scene->createEntity("PADDLE", WIDTH / 2, HEIGHT-110); 
-    paddle->addComponent<VelocityComponent>(500, 500);
-    paddle->addComponent<SpriteComponent>(PADDLE_WIDTH, PADDLE_HEIGHT, SDL_Color{255, 255, 255});
-    paddle->addComponent<PlayerControlledComponent>();
-  }
-};
-
-
-class SquareSpawnSetupSystem : public SetupSystem {
-  void run() {
-    
-    int brickCount = 0;
-    int rows = 6;
-    int cols = 10;
-    SDL_Color colors[] = {red, orange, yellow, green, blue, purple};
-
-    for (int row = 0; row < rows; ++row) {
-        for (int col = 0; col < cols; ++col) {
-            int posX = col * (BRICK_WIDTH + BRICK_SPACING) + WIDTH / 2 - (cols * (BRICK_WIDTH + BRICK_SPACING) / 2);
-            int posY = row * (BRICK_HEIGHT + BRICK_SPACING) + 20;
-            Entity* square = scene->createEntity("SQUARE2", posX, posY); 
-
-            square->addComponent<SpriteComponent>(BRICK_WIDTH, BRICK_HEIGHT, orange);
-            square->addComponent<BrickComponent>();
-            brickCount++;
-        }
-    }
-
-    scene->setBrickCount(brickCount);
-  }
-};
-
-class BallSpawnSetupSystem : public SetupSystem {
-  void run() {
-    Entity* ball = scene->createEntity("BALL", WIDTH/2, HEIGHT/2); 
-    ball->addComponent<VelocityComponent>(250, 250);
-    ball->addComponent<SpriteComponent>(20, 20, SDL_Color{255, 255, 255});
-    ball->addComponent<BallComponent>();
+    Entity* square = scene->createEntity("NAVE", 0, 0);
+    square->addComponent<PlayerComponent>();
+    square->addComponent<VelocityComponent>(300);
+    square->addComponent<TextureComponent>("assets/Sprites/Nave.png");
+    square->addComponent<SpriteComponent>("assets/Sprites/Nave.png", 16, 16, 5, 3, 400);
   }
 };
 
@@ -91,79 +70,84 @@ class MovementSystem : public UpdateSystem {
   }
 };
 
-class CollisionSystem : public UpdateSystem {
-public:
-    void run(float dT) override {
-        auto view = scene->r.view<PositionComponent, VelocityComponent>();
+class SpriteMovementSystem : public UpdateSystem {
+  void run(float dT) {
+    auto view = scene->r.view<SpriteComponent, VelocityComponent>();
 
-        if (scene->getBrickCount() == 0) {
-          printf("============================================\n");
-          printf("¡Has ganado el juego!\n");
-          printf("============================================\n");
-          exit(0);
-        }
+    for (auto e : view) {
+      auto& spr = view.get<SpriteComponent>(e);
+      auto vel = view.get<VelocityComponent>(e);
 
-        for (auto entity : view) {
-            auto &pos = view.get<PositionComponent>(entity);
-            auto &vel = view.get<VelocityComponent>(entity);
-
-            if (scene->r.any_of<BallComponent>(entity)) {
-
-                limitSpeed(vel);
-                
-                auto paddleView = scene->r.view<PositionComponent, PlayerControlledComponent>();
-                for (auto paddleEntity : paddleView) {
-                    auto &paddlePos = paddleView.get<PositionComponent>(paddleEntity);
-                    if (checkCollision(pos, paddlePos, PADDLE_WIDTH, PADDLE_HEIGHT)) { // Paddle size (width=50, height=10)
-                        // Invertir la dirección de la pelota
-                        vel.y = -vel.y;
-                    }
-                }
-
-                // Colisión con los bricks
-                auto brickView = scene->r.view<PositionComponent, BrickComponent>();
-                for (auto brickEntity : brickView) {
-                    auto &brickPos = brickView.get<PositionComponent>(brickEntity);
-                    if (checkCollision(pos, brickPos, BRICK_WIDTH, BRICK_HEIGHT)) {
-                        // Colisión detectada, eliminar el bloque
-                        scene->destroyEntity(brickEntity);
-                        scene->decreaseBrickCount();
-
-                        // Invertir la dirección de la pelota
-                        vel.y = -vel.y;
-                        break;
-                    }
-                }
-            }
-        }
+      spr.yIndex = 0;
     }
-
-    void setScene(Scene *s) {
-        scene = s;
-    }
-
-private:
-    Scene *scene;
-
-    bool checkCollision(const PositionComponent &a, const PositionComponent &b, int width, int height) {
-        // Implementar lógica de detección de colisiones
-        return !(a.x + width < b.x ||
-                 a.x > b.x + width ||
-                 a.y + height < b.y ||
-                 a.y > b.y + height);
-    }
-
-    void limitSpeed(VelocityComponent &vel) {
-        // Limitar la velocidad en el eje X
-        if (vel.x > SPEED_LIMIT) vel.x = SPEED_LIMIT;
-        if (vel.x < -SPEED_LIMIT) vel.x = -SPEED_LIMIT;
-
-        // Limitar la velocidad en el eje Y
-        if (vel.y > SPEED_LIMIT) vel.y = SPEED_LIMIT;
-        if (vel.y < -SPEED_LIMIT) vel.y = -SPEED_LIMIT;
-    }
+  }
 };
 
+// class CollisionSystem : public UpdateSystem {
+// public:
+//     void run(float dT) override {
+//         auto view = scene->r.view<PositionComponent, VelocityComponent>();
+
+//         for (auto entity : view) {
+//             auto &pos = view.get<PositionComponent>(entity);
+//             auto &vel = view.get<VelocityComponent>(entity);
+
+//             if (scene->r.any_of<BallComponent>(entity)) {
+
+//                 limitSpeed(vel);
+                
+//                 auto paddleView = scene->r.view<PositionComponent, PlayerControlledComponent>();
+//                 for (auto paddleEntity : paddleView) {
+//                     auto &paddlePos = paddleView.get<PositionComponent>(paddleEntity);
+//                     if (checkCollision(pos, paddlePos, PADDLE_WIDTH, PADDLE_HEIGHT)) { // Paddle size (width=50, height=10)
+//                         // Invertir la dirección de la pelota
+//                         vel.y = -vel.y;
+//                     }
+//                 }
+
+//                 // Colisión con los bricks
+//                 auto brickView = scene->r.view<PositionComponent, BrickComponent>();
+//                 for (auto brickEntity : brickView) {
+//                     auto &brickPos = brickView.get<PositionComponent>(brickEntity);
+//                     if (checkCollision(pos, brickPos, BRICK_WIDTH, BRICK_HEIGHT)) {
+//                         // Colisión detectada, eliminar el bloque
+//                         scene->destroyEntity(brickEntity);
+//                         scene->decreaseBrickCount();
+
+//                         // Invertir la dirección de la pelota
+//                         vel.y = -vel.y;
+//                         break;
+//                     }
+//                 }
+//             }
+//         }
+//     }
+
+//     void setScene(Scene *s) {
+//         scene = s;
+//     }
+
+// private:
+//     Scene *scene;
+
+//     bool checkCollision(const PositionComponent &a, const PositionComponent &b, int width, int height) {
+//         // Implementar lógica de detección de colisiones
+//         return !(a.x + width < b.x ||
+//                  a.x > b.x + width ||
+//                  a.y + height < b.y ||
+//                  a.y > b.y + height);
+//     }
+
+//     void limitSpeed(VelocityComponent &vel) {
+//         // Limitar la velocidad en el eje X
+//         if (vel.x > SPEED_LIMIT) vel.x = SPEED_LIMIT;
+//         if (vel.x < -SPEED_LIMIT) vel.x = -SPEED_LIMIT;
+
+//         // Limitar la velocidad en el eje Y
+//         if (vel.y > SPEED_LIMIT) vel.y = SPEED_LIMIT;
+//         if (vel.y < -SPEED_LIMIT) vel.y = -SPEED_LIMIT;
+//     }
+// };
 
 class WallHitSystem : public UpdateSystem {
   void run(float dT) {
@@ -183,14 +167,6 @@ class WallHitSystem : public UpdateSystem {
 
       }
 
-      // Si la bola toca el suelo se acaba el juego y se imprime un mensaje
-      if (newPosY + spr.height > 768) {
-        printf("============================================\n");
-        std::printf("GAME OVER\n");
-        printf("============================================\n");
-        exit(0);
-      }
-      
       if(newPosY < 0) {
         vel.y *= -1.1;
         pos.y = 0;
@@ -200,55 +176,101 @@ class WallHitSystem : public UpdateSystem {
   }
 };
 
-class SquareRenderSystem : public RenderSystem {
+class SpriteAnimationSystem : public UpdateSystem {
+  void run(float dT) override {
+    auto view = scene->r.view<SpriteComponent>();
+    Uint32 now = SDL_GetTicks();
+
+    for (auto e : view) {
+      auto& spr = view.get<SpriteComponent>(e);
+
+      if (spr.animationFrames > 0) {
+        if (spr.lastUpdate == 0) {
+          spr.lastUpdate = now;
+          continue;
+        }
+        float timeSinceLastUpdate = now - spr.lastUpdate;
+
+        int lastFrame = spr.animationFrames - 1;
+
+        int framesToUpdate = timeSinceLastUpdate / spr.animationDuration * spr.animationFrames; 
+
+        if (framesToUpdate > 0) {
+          spr.xIndex += framesToUpdate;
+          spr.xIndex %= spr.animationFrames;
+          spr.lastUpdate = now;
+        }
+
+      }
+    }
+  }
+};
+
+class SpriteRenderSystem : public RenderSystem {
   void run(SDL_Renderer* renderer) {
     auto view = scene->r.view<PositionComponent, SpriteComponent>();
     for (auto e : view) {
       auto pos = view.get<PositionComponent>(e);
       auto spr = view.get<SpriteComponent>(e);
 
-      SDL_SetRenderDrawColor(renderer, spr.color.r, spr.color.g, spr.color.b, spr.color.a);
-      SDL_Rect r = { pos.x, pos.y, spr.width, spr.height };
-      SDL_RenderFillRect(renderer, &r);
+      Texture* texture = TextureManager::GetTexture(spr.filename);
+      SDL_Rect clip = { 
+        spr.xIndex * spr.width, 
+        spr.yIndex * spr.height,
+        spr.width,
+        spr.height 
+      };
+
+      texture->render(scene->renderer, pos.x, pos.y, spr.width * spr.scale, spr.height * spr.scale, &clip);
     }
   }
 }; 
 
-class InputSystem : public UpdateSystem {
-  void run(float dT) {
-    const Uint8* state = SDL_GetKeyboardState(NULL);
-
-    auto view = scene->r.view<VelocityComponent, PlayerControlledComponent>();
+class InputSystem : public EventSystem {
+  void run(SDL_Event event) {
+    auto view = scene->r.view<VelocityComponent, PlayerComponent>();
 
     for (auto e : view) {
       auto& vel = view.get<VelocityComponent>(e);
 
-      vel.x = 0;
-      vel.y = 0;
+      if (event.type == SDL_KEYDOWN){
+        switch (event.key.keysym.sym) {
+          case SDLK_LEFT:
+            vel.x = -vel.speed;
+            break;
+          case SDLK_RIGHT:
+            vel.x = vel.speed;
+            break;
+          case SDLK_UP:
+            vel.y = -vel.speed;
+            break;
+          case SDLK_DOWN:
+            vel.y = vel.speed;
+            break;
+        }
+        
+      }else if (event.type == SDL_KEYUP){
+        switch (event.key.keysym.sym) {
+          case SDLK_LEFT:
+          case SDLK_RIGHT:
+            vel.x = 0;
+            break;
+          case SDLK_UP:
+          case SDLK_DOWN:
+            vel.y = 0;
+            break;
+        }
+      }
 
-      if (state[SDL_SCANCODE_A]) {
-        vel.x = -500;
-      }
-      if (state[SDL_SCANCODE_D]) {
-        vel.x = 500;
-      }
     }
   }
-};
-
-struct TextureComponent {
-  std::string filename;
-};
-
-struct BackgroundComponent {
-  std::string filename;
 };
 
 class BackgroundSetupSystem : public SetupSystem {
 public:
   void run() override {
     Entity* background = scene->createEntity("Background");
-    const std::string& bgfile = "assets/stars.jpeg";
+    const std::string& bgfile = "assets/Background/Background.png";
     background->addComponent<TextureComponent>(bgfile);
     background->addComponent<BackgroundComponent>(bgfile);
   }
@@ -275,7 +297,6 @@ class BackgroundRenderSystem : public RenderSystem {
   }
 };
 
-
 class DemoGame : public Game {
   public:
     Scene* sampleScene;
@@ -288,20 +309,21 @@ class DemoGame : public Game {
 
     void setup() {
       
-      sampleScene = new Scene("BREAKOUT", r, renderer);
-      addSetupSystem<PaddleSpawnSetypSystem>(sampleScene);
-      addSetupSystem<BallSpawnSetupSystem>(sampleScene);
-      addSetupSystem<SquareSpawnSetupSystem>(sampleScene);
-
+      sampleScene = new Scene("Galaga", r, renderer);
+      addSetupSystem<PlayerSpawnSetupSystem>(sampleScene);
       addSetupSystem<BackgroundSetupSystem>(sampleScene);
       addSetupSystem<TextureSetupSystem>(sampleScene);
-      addRenderSystem<BackgroundRenderSystem>(sampleScene);
 
+      addEventSystem<InputSystem>(sampleScene);
+      addUpdateSystem<SpriteMovementSystem>(sampleScene);
       addUpdateSystem<MovementSystem>(sampleScene);
+      addUpdateSystem<SpriteAnimationSystem>(sampleScene);
       addUpdateSystem<WallHitSystem>(sampleScene);
-      addUpdateSystem<InputSystem>(sampleScene);
-      addRenderSystem<SquareRenderSystem>(sampleScene);
-      addUpdateSystem<CollisionSystem>(sampleScene);
+      
+
+      addRenderSystem<BackgroundRenderSystem>(sampleScene);
+      addRenderSystem<SpriteRenderSystem>(sampleScene);
+      // addUpdateSystem<CollisionSystem>(sampleScene);
 
       setScene(sampleScene);
     }

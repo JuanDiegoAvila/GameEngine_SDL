@@ -30,13 +30,19 @@ void Texture::free(){
     }
 }
 
-void Texture::render(SDL_Renderer* renderer, int x, int y, SDL_Rect* clip){
-    SDL_Rect srcrect = SDL_Rect{ x, y, width, height };
-    
-    if(clip != nullptr){
-        srcrect.w = clip->w;
-        srcrect.h = clip->h;
+void Texture::render(SDL_Renderer* renderer, int x, int y, int w, int h, SDL_Rect* clip){
+    int rWidth = width;
+    int rHeight = height;
+
+    if(w != 0){
+        rWidth = w;
     }
 
-    SDL_RenderCopy(renderer, texture, &srcrect, clip);
+    if(h != 0){
+        rHeight = h;
+    }
+
+    SDL_Rect renderQuad = SDL_Rect{ x, y, rWidth, rHeight };
+    
+    SDL_RenderCopy(renderer, texture, clip, &renderQuad);
 }

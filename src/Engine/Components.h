@@ -11,11 +11,12 @@ struct PositionComponent {
 };
 
 struct VelocityComponent {
-  int x;
-  int y;
+  int speed; 
+  int x = 0;
+  int y = 0;
 };
 
-struct PlayerControlledComponent {};
+struct PlayerComponent {};
 
 struct BrickComponent {};
 

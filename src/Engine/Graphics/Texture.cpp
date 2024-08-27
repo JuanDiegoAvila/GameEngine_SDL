@@ -46,3 +46,11 @@ void Texture::render(SDL_Renderer* renderer, int x, int y, int w, int h, SDL_Rec
     
     SDL_RenderCopy(renderer, texture, clip, &renderQuad);
 }
+
+int Texture::getWidth(){
+    return width;
+}
+
+int Texture::getHeight(){
+    return height;
+}

@@ -12,6 +12,8 @@ public:
     void load(const std::string& path, SDL_Renderer* renderer);
     void free();
     void render(SDL_Renderer* renderer, int x, int y, int w = 0, int h = 0, SDL_Rect* clip = nullptr);
+    int getWidth();
+    int getHeight();
 
 private:
     SDL_Texture* texture;

@@ -15,9 +15,3 @@ struct VelocityComponent {
   int x = 0;
   int y = 0;
 };
-
-struct PlayerComponent {};
-
-struct BrickComponent {};
-
-struct BallComponent {};

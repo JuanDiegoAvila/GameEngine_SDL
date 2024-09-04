@@ -10,26 +10,9 @@
 #include "Components.h"
 #include "Sprites.h"
 #include "Background.h"
+#include "Colliders.h"
+#include "Rock.h"
 
-#define WIDTH 1024
-#define HEIGHT 768
-#define BRICK_WIDTH 90
-#define BRICK_HEIGHT 30
-#define BRICK_SPACING 10
-#define PADDLE_WIDTH 150
-#define PADDLE_HEIGHT 20
-
-#define SPEED_LIMIT 600
-
-class PlayerSpawnSetupSystem : public SetupSystem {
-  void run() {
-    Entity* square = scene->createEntity("NAVE", 0, 0);
-    square->addComponent<PlayerComponent>();
-    square->addComponent<VelocityComponent>(300);
-    square->addComponent<TextureComponent>("assets/Sprites/Nave.png");
-    square->addComponent<SpriteComponent>("assets/Sprites/Nave.png", 16, 16, 5, 3, 400);
-  }
-};
 
 class MovementSystem : public UpdateSystem {
   void run(float dT) {
@@ -72,7 +55,7 @@ class WallHitSystem : public UpdateSystem {
   }
 };
 
-class InputSystem : public EventSystem {
+class MovementInputSystem : public EventSystem {
   void run(SDL_Event event) {
     auto view = scene->r.view<VelocityComponent, PlayerComponent>();
 
@@ -136,21 +119,34 @@ class DemoGame : public Game {
       
       sampleScene = new Scene("Galaga", r, renderer);
       addSetupSystem<PlayerSpawnSetupSystem>(sampleScene);
+      addSetupSystem<RocksSpawnSetupSystem>(sampleScene);
       addSetupSystem<BackgroundSetupSystem>(sampleScene);
       
       addSetupSystem<TilemapSetupSystem>(sampleScene);
-      addSetupSystem<AutoTilingSetupSystem>(sampleScene);
+      addSetupSystem<AdvancedAutoTilingSetupSystem>(sampleScene);
       addSetupSystem<TextureSetupSystem>(sampleScene);
+      addSetupSystem<TilemapEntitySetupSystem>(sampleScene);
 
-      addEventSystem<InputSystem>(sampleScene);
 
+      addEventSystem<MovementInputSystem>(sampleScene);
+
+      addUpdateSystem<ColliderResetSystem>(sampleScene);
       addUpdateSystem<SpriteMovementSystem>(sampleScene);
+      addUpdateSystem<RockMovementSystem>(sampleScene);
+      addUpdateSystem<PlayerPowerUpCollisionDetectionSystem>(sampleScene);
+      addUpdateSystem<PlayerPowerUpCollisionSystem>(sampleScene);
+
+      addUpdateSystem<PlayerTileCollisionDetectionSystem>(sampleScene);
+      addUpdateSystem<PlayerWallCollisionSystem>(sampleScene);
+
       addUpdateSystem<MovementSystem>(sampleScene);
       addUpdateSystem<SpriteAnimationSystem>(sampleScene);
       addUpdateSystem<WallHitSystem>(sampleScene);
-    
       addRenderSystem<SpriteRenderSystem>(sampleScene);
       addRenderSystem<TilemapRenderSystem>(sampleScene);
+      addRenderSystem<ColliderRenderSystem>(sampleScene);
+      //addRenderSystem<ColliderRenderSystem>(sampleScene);
+      //addRenderSystem<TilemapRenderSystem>(sampleScene);
 
       setScene(sampleScene);
     }

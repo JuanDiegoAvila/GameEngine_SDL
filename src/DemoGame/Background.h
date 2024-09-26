@@ -4,8 +4,6 @@
 #include "Engine/Entity.h"
 #include "Engine/Systems.h"
 #include "Engine/Components.h"
-#include "Components.h"
-#include "Tilemap.h"
 #include "Sprites.h"
 
 class BackgroundSetupSystem : public SetupSystem {
@@ -16,6 +14,8 @@ public:
     background->addComponent<PositionComponent>(0, 0);
     background->addComponent<TextureComponent>(bgfile);
     background->addComponent<SpriteComponent>(bgfile, 1024, 768, 1, 4, 1000);
+    background->get<SpriteComponent>().layer = 0;
     background->addComponent<BackgroundComponent>(bgfile);
   }
 };
+

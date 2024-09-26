@@ -1,18 +1,87 @@
+// #include "Engine/Game.h"
+// #include "Engine/Scene.h"
+// #include "Engine/Entity.h"
+// #include "Engine/Components.h"
+// #include "Engine/Systems.h"
+// #include "Engine/Graphics/TextureManager.h"
+// #include <printf.h>
+// #include <entt/entt.hpp>
+// #include "Player.h"
+// #include "Tilemap.h"
+// #include "Components.h"
+// #include "Sprites.h"
+
+// #include "Colliders.h"
+// #include "Rock.h"
+
+#include "DemoGame/Tilemap.h"
 #include "Engine/Game.h"
 #include "Engine/Scene.h"
 #include "Engine/Entity.h"
 #include "Engine/Components.h"
 #include "Engine/Systems.h"
-#include "Engine/Graphics/TextureManager.h"
-#include <printf.h>
 #include <entt/entt.hpp>
-#include "Tilemap.h"
-#include "Components.h"
 #include "Sprites.h"
+#include "Player.h"
 #include "Background.h"
-#include "Colliders.h"
 #include "Rock.h"
+#include "Colliders.h"
 
+class PlayerSpawnSetupSystem : public SetupSystem {
+  void run() {
+    Entity* square = scene->createEntity("NAVE", WIDTH/2 - 40, HEIGHT/2 - 40);
+    square->addComponent<PlayerComponent>();
+    square->addComponent<VelocityComponent>(300);
+    square->addComponent<TextureComponent>("assets/Sprites/Nave.png");
+    square->addComponent<SpriteComponent>("assets/Sprites/Nave.png", 16, 16, 5, 3, 400);
+    square->get<SpriteComponent>().layer = 1;
+    square->addComponent<BoxColliderComponent>(SDL_Rect{0, 0, 80, 80}, SDL_Color{255, 0, 0, 255});
+  }
+};
+
+class RocksSpawnerSetupSystem : public SetupSystem {
+  void run() {
+    auto startPositionX = rand() % WIDTH;
+    Entity* rockSpawner = scene->createEntity("ROCK_SPAWNER", startPositionX, 0);
+    rockSpawner->addComponent<RockSpawner>(0, 1000, "assets/Sprites/Rock.png");
+  }
+};
+
+class RockTextureSetupSystem : public SetupSystem {
+  void run() {
+    TextureManager::LoadTexture("assets/Sprites/Rock.png", scene->renderer);
+  }
+};
+
+class RockRandomSpawnSystem : public UpdateSystem {
+  void run(float dT) {
+    auto view = scene->r.view<RockSpawner>();
+    Uint32 now = SDL_GetTicks();
+    
+    for (auto e : view) {
+      auto& spawner = view.get<RockSpawner>(e);
+
+      if (spawner.lastSpawnTime == 0) {
+        spawner.lastSpawnTime = now;
+        continue;
+      }
+      
+      float timeSinceLastSpawn = now - spawner.lastSpawnTime;
+
+      if (timeSinceLastSpawn > spawner.spawnRate) {
+        printf("Rock Spawned\n");
+        Entity* newRock = scene->createEntity("ROCK", rand() % WIDTH, 0);
+        newRock->addComponent<VelocityComponent>(100, 0, 100);
+        newRock->addComponent<RockComponent>();
+        newRock->addComponent<TextureComponent>(spawner.filename);
+        newRock->addComponent<SpriteComponent>(spawner.filename, 16, 16, 5, 10, 1000);
+        newRock->get<SpriteComponent>().layer = 1;
+        newRock->addComponent<BoxColliderComponent>(SDL_Rect{0, 0, 80, 80}, SDL_Color{255, 0, 0, 255});
+        spawner.lastSpawnTime = now;
+      }
+    }
+  }
+};
 
 class MovementSystem : public UpdateSystem {
   void run(float dT) {
@@ -105,6 +174,22 @@ class TextureSetupSystem : public SetupSystem {
   }
 };
 
+class CameraSetupSystem : public SetupSystem {
+  void run() {
+    int width = WIDTH;
+    int height = HEIGHT;
+
+    scene->mainCamera = scene->createEntity("CAMERA", 0, 0);
+    scene->mainCamera->addComponent<CameraComponent>(
+      1,
+      width,
+      height,
+      width * 10,
+      height * 10
+    );
+  }
+};
+
 class DemoGame : public Game {
   public:
     Scene* sampleScene;
@@ -118,23 +203,23 @@ class DemoGame : public Game {
     void setup() {
       
       sampleScene = new Scene("Galaga", r, renderer);
+
       addSetupSystem<PlayerSpawnSetupSystem>(sampleScene);
-      addSetupSystem<RocksSpawnSetupSystem>(sampleScene);
+      addSetupSystem<RocksSpawnerSetupSystem>(sampleScene);
+      addSetupSystem<RockTextureSetupSystem>(sampleScene);
       addSetupSystem<BackgroundSetupSystem>(sampleScene);
-      
-      addSetupSystem<TilemapSetupSystem>(sampleScene);
-      addSetupSystem<AdvancedAutoTilingSetupSystem>(sampleScene);
+      addSetupSystem<LivesSetupSystem>(sampleScene);
       addSetupSystem<TextureSetupSystem>(sampleScene);
       addSetupSystem<TilemapEntitySetupSystem>(sampleScene);
-
-
       addEventSystem<MovementInputSystem>(sampleScene);
 
       addUpdateSystem<ColliderResetSystem>(sampleScene);
+      addUpdateSystem<RockRandomSpawnSystem>(sampleScene);
       addUpdateSystem<SpriteMovementSystem>(sampleScene);
       addUpdateSystem<RockMovementSystem>(sampleScene);
-      addUpdateSystem<PlayerPowerUpCollisionDetectionSystem>(sampleScene);
-      addUpdateSystem<PlayerPowerUpCollisionSystem>(sampleScene);
+
+      addUpdateSystem<PlayerRockCollisionDetectionSystem>(sampleScene);
+      addUpdateSystem<PlayerCollisionSystem>(sampleScene);
 
       addUpdateSystem<PlayerTileCollisionDetectionSystem>(sampleScene);
       addUpdateSystem<PlayerWallCollisionSystem>(sampleScene);
@@ -143,10 +228,8 @@ class DemoGame : public Game {
       addUpdateSystem<SpriteAnimationSystem>(sampleScene);
       addUpdateSystem<WallHitSystem>(sampleScene);
       addRenderSystem<SpriteRenderSystem>(sampleScene);
-      addRenderSystem<TilemapRenderSystem>(sampleScene);
+      addRenderSystem<LivesRenderSystem>(sampleScene);
       addRenderSystem<ColliderRenderSystem>(sampleScene);
-      //addRenderSystem<ColliderRenderSystem>(sampleScene);
-      //addRenderSystem<TilemapRenderSystem>(sampleScene);
 
       setScene(sampleScene);
     }

@@ -15,3 +15,11 @@ struct VelocityComponent {
   int x = 0;
   int y = 0;
 };
+
+struct CameraComponent {
+  int zoom;
+  int vw;
+  int vh;
+  int ww;
+  int wh;
+};

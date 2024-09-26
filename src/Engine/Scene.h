@@ -51,4 +51,5 @@ public:
   entt::registry& r;
   std::string name;
   SDL_Renderer* renderer;
+  Entity* mainCamera;
 };

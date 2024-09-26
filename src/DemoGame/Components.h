@@ -9,6 +9,8 @@
 #define BRICK_SPACING 10
 #define PADDLE_WIDTH 150
 #define PADDLE_HEIGHT 20
+#define MIN_LAYER 0
+#define MAX_LAYER 1
 
 #define SPEED_LIMIT 600
 
@@ -38,5 +40,11 @@ struct SpriteComponent {
   Uint32 lastUpdate = 0;
   int xIndex = 0;
   int yIndex = 0;
+  int layer = 0;
 };
 
+struct RockSpawner {
+  Uint32 lastSpawnTime = 0;
+  int spawnRate = 35000;
+  std::string filename;
+};

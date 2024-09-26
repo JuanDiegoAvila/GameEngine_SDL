@@ -52,19 +52,30 @@ class SpriteAnimationSystem : public UpdateSystem {
 class SpriteRenderSystem : public RenderSystem {
   void run(SDL_Renderer* renderer) {
     auto view = scene->r.view<PositionComponent, SpriteComponent>();
-    for (auto e : view) {
-      auto pos = view.get<PositionComponent>(e);
-      auto spr = view.get<SpriteComponent>(e);
+    
+    for(int layer = MIN_LAYER; layer <= MAX_LAYER; ++layer){
+      for (auto e : view) {
+        auto pos = view.get<PositionComponent>(e);
+        auto spr = view.get<SpriteComponent>(e);
+        
+        if(spr.layer == layer) {
+          Texture* texture = TextureManager::GetTexture(spr.filename);
+            SDL_Rect clip = { 
+              spr.xIndex * spr.width, 
+              spr.yIndex * spr.height,
+              spr.width,
+              spr.height 
+            };
 
-      Texture* texture = TextureManager::GetTexture(spr.filename);
-      SDL_Rect clip = { 
-        spr.xIndex * spr.width, 
-        spr.yIndex * spr.height,
-        spr.width,
-        spr.height 
-      };
-
-      texture->render(scene->renderer, pos.x, pos.y, spr.width * spr.scale, spr.height * spr.scale, &clip);
+          texture->render(
+            scene->renderer, 
+            pos.x, // - cameraPosition.x, 
+            pos.y, // - cameraPosition.y, 
+            spr.width * spr.scale, //* cameraComponent.zoom, 
+            spr.height * spr.scale, // * cameraComponent.zoom, 
+            &clip);
+        }
+      }
     }
   }
 }; 

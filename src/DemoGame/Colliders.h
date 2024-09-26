@@ -9,7 +9,8 @@
 enum class CollisionType {
   NONE,
   WALL,
-  TRIGGER
+  TRIGGER,
+  ROCK
 };
 
 struct BoxColliderComponent {
@@ -54,11 +55,11 @@ public:
   }
 };
 
-class PlayerPowerUpCollisionDetectionSystem : public UpdateSystem {
+class PlayerRockCollisionDetectionSystem : public UpdateSystem {
 public: 
   void run (float dT) override {
     auto playerView = scene->r.view<PlayerComponent, BoxColliderComponent, PositionComponent>();
-    auto powerUpView = scene->r.view<PowerUpComponent, BoxColliderComponent, PositionComponent>();
+    auto rockView = scene->r.view<RockComponent, BoxColliderComponent, PositionComponent>();
 
     for (auto player : playerView) {
       auto position = playerView.get<PositionComponent>(player);
@@ -71,36 +72,40 @@ public:
         collider.rect.h,
       };
 
-      for (auto powerUp: powerUpView) {
-        auto [pposition, pcollider] = powerUpView.get<PositionComponent, BoxColliderComponent>(powerUp);
+      for (auto rock: rockView) {
+        auto [pposition, pcollider] = rockView.get<PositionComponent, BoxColliderComponent>(rock);
 
-        SDL_Rect powerUpRect = {
+        SDL_Rect rockRect = {
           pposition.x + pcollider.rect.x,
           pposition.y + pcollider.rect.y,
           pcollider.rect.w,
           pcollider.rect.h,
         };
 
-        if (SDL_HasIntersection(&playerRect, &powerUpRect)) {
-          collider.collisionType = CollisionType::TRIGGER; 
+        if (SDL_HasIntersection(&playerRect, &rockRect)) {
+          collider.collisionType = CollisionType::ROCK; 
         }
       }
     }
   }
 };
 
-
-class PlayerPowerUpCollisionSystem : public UpdateSystem {
+class PlayerCollisionSystem : public UpdateSystem {
 public: 
   void run (float dT) override {
-    auto playerView = scene->r.view<PlayerComponent, BoxColliderComponent, PositionComponent>();
+    auto playerView = scene->r.view<PlayerComponent, BoxColliderComponent, PositionComponent, SpriteComponent>();
+    auto livesView = scene->r.view<LivesComponent>();
+    auto& lives = livesView.get<LivesComponent>(livesView.front());
 
     for (auto player : playerView) {
-      auto& collider = playerView.get<BoxColliderComponent>(player);
+      auto [pposition, collider, spr] = playerView.get<PositionComponent, BoxColliderComponent, SpriteComponent>(player);
 
-      if (collider.collisionType == CollisionType::TRIGGER && !collider.isTriggered) {
-        std::cout << "player collider with power up" << std::endl;
-        collider.isTriggered = true;
+      if (collider.collisionType == CollisionType::ROCK) {
+        lives.lives -= 1;
+        std::cout << "player collider with rock" << std::endl;
+        
+        pposition.x = WIDTH / 2 - spr.width * spr.scale / 2;
+        pposition.y = HEIGHT / 2 - spr.height * spr.scale/ 2;
       }
     }
   }
@@ -138,8 +143,6 @@ private:
     }
   }
 };
-
-
 
 class PlayerTileCollisionDetectionSystem : public UpdateSystem {
 public: 

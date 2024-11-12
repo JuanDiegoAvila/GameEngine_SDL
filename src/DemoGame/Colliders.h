@@ -5,6 +5,7 @@
 #include "Engine/Components.h"
 #include "Components.h"
 #include "Player.h"
+#include "Sound.h"
 
 enum class CollisionType {
   NONE,
@@ -101,11 +102,27 @@ public:
       auto [pposition, collider, spr] = playerView.get<PositionComponent, BoxColliderComponent, SpriteComponent>(player);
 
       if (collider.collisionType == CollisionType::ROCK) {
+        PlayCrashSound();
         lives.lives -= 1;
         std::cout << "player collider with rock" << std::endl;
         
         pposition.x = WIDTH / 2 - spr.width * spr.scale / 2;
         pposition.y = HEIGHT / 2 - spr.height * spr.scale/ 2;
+      }
+    }
+  }
+
+  private:
+  void PlayCrashSound() {
+    auto view = scene->r.view<SoundComponent>();
+
+    for (auto entity : view) {
+      auto& soundComponent = view.get<SoundComponent>(entity);
+      if (soundComponent.type == SoundType::EFFECT && soundComponent.filename == "assets/crash.wav") {
+        if (soundComponent.channel) {
+          soundComponent.channel->stop();
+        }
+        game->soundManager->playSound(soundComponent.sound, nullptr, false, &soundComponent.channel);
       }
     }
   }

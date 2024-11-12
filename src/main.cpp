@@ -1,8 +1,8 @@
 #include "DemoGame/DemoGame.h"
 
 int main() {
-  DemoGame demo = DemoGame();
-  demo.setup();
-  demo.run();
+  DemoGame game = DemoGame();
+  game.setup();
+  game.run();
   return 0;
 }

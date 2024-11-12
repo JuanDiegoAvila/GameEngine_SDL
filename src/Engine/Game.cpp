@@ -18,8 +18,11 @@ Game::Game(const char* title, int width, int height)
   
   window = SDL_CreateWindow(title, 0, 0, width, height, 0);
   renderer = SDL_CreateRenderer(window, -1, 0);
-  
+
   SDL_SetRenderDrawColor(renderer, 200, 255, 255, 1);
+
+  FMOD::System_Create(&soundManager);
+  soundManager->init(32, FMOD_INIT_NORMAL, nullptr);
 
   screen_width = width;
   screen_height = height;
@@ -33,7 +36,9 @@ Game::Game(const char* title, int width, int height)
 }
 
 Game::~Game()
-{}
+{
+  soundManager->release();
+}
 
 void Game::frameStart()
 {
@@ -94,6 +99,9 @@ void Game::update()
 {
   if (currentScene != nullptr) {
     currentScene->update(dT);
+  }
+  if (soundManager) {
+    soundManager->update();
   }
 }
 

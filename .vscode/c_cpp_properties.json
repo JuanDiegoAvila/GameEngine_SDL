@@ -3,7 +3,10 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "/home/ubuntu/fmod/fmodstudioapi20224linux/api/core",
+                "/home/ubuntu/fmod/fmodstudioapi20224linux/api/core",
+                "/home/ubuntu/fmod/fmodstudioapi20224linux/api/core/inc"
             ],
             "defines": [],
             "cStandard": "c17",

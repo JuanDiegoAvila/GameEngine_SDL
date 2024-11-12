@@ -14,6 +14,8 @@
 // #include "Colliders.h"
 // #include "Rock.h"
 
+#pragma once
+
 #include "DemoGame/Tilemap.h"
 #include "Engine/Game.h"
 #include "Engine/Scene.h"
@@ -26,6 +28,7 @@
 #include "Background.h"
 #include "Rock.h"
 #include "Colliders.h"
+#include "Sound.h"
 
 class PlayerSpawnSetupSystem : public SetupSystem {
   void run() {
@@ -195,12 +198,10 @@ class DemoGame : public Game {
     Scene* sampleScene;
     entt::registry r;
 
-  public:
     DemoGame()
-      : Game("BREAKOUT", WIDTH, HEIGHT)
-    { }
+    : Game("BREAKOUT", WIDTH, HEIGHT) { }
 
-    void setup() {
+    void setup() override {
       
       sampleScene = new Scene("Galaga", r, renderer);
 
@@ -212,6 +213,11 @@ class DemoGame : public Game {
       addSetupSystem<TextureSetupSystem>(sampleScene);
       addSetupSystem<TilemapEntitySetupSystem>(sampleScene);
       addEventSystem<MovementInputSystem>(sampleScene);
+
+      addSetupSystem<BackgroundMusicSetupSystem>(sampleScene);
+      addSetupSystem<FxMusicSetupSystem>(sampleScene);
+      addSetupSystem<SoundSetupSystem>(sampleScene);
+      addSetupSystem<BackgroundMusicPlaySetupSystem>(sampleScene);
 
       addUpdateSystem<ColliderResetSystem>(sampleScene);
       addUpdateSystem<RockRandomSpawnSystem>(sampleScene);
